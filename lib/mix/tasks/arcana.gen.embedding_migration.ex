@@ -63,8 +63,17 @@ defmodule Mix.Tasks.Arcana.Gen.EmbeddingMigration do
     filename = "#{timestamp}_update_embedding_dimensions.exs"
 
     # Find the priv/repo/migrations directory
-    repo_config = Application.get_env(:arcana, Application.get_env(:arcana, :repo))
-    priv_dir = Keyword.get(repo_config, :priv, "priv/repo")
+    repo_module = Application.get_env(:arcana, :repo)
+
+    priv_dir =
+      case repo_module.config()[:priv] do
+        nil ->
+          "priv/repo"
+
+        priv_path ->
+          priv_path
+      end
+
     migrations_dir = Path.join(priv_dir, "migrations")
 
     # Ensure the directory exists
