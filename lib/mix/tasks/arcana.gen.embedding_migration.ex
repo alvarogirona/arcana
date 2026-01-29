@@ -112,33 +112,49 @@ defmodule Mix.Tasks.Arcana.Gen.EmbeddingMigration do
 
       def up do
         # Drop the existing HNSW index
-        drop_if_exists index(:arcana_chunks, [:embedding])
+        execute "DROP INDEX IF EXISTS arcana_chunks_embedding_idx"
+
+        # Temporarily allow null values
+        execute "ALTER TABLE arcana_chunks ALTER COLUMN embedding DROP NOT NULL"
+
+        # Clear existing embeddings (they have wrong dimensions and need to be re-embedded)
+        execute "UPDATE arcana_chunks SET embedding = NULL"
 
         # Alter the embedding column to new dimensions
         alter table(:arcana_chunks) do
-          modify :embedding, :vector, size: #{dimensions}
+          modify :embedding, :vector, size: #{dimensions}, null: true
         end
 
         # Recreate the HNSW index with the new dimensions
-        create index(:arcana_chunks, [:embedding],
-          using: :hnsw,
-          options: "vector_cosine_ops"
-        )
+        execute \"\"\"
+        CREATE INDEX arcana_chunks_embedding_idx ON arcana_chunks
+        USING hnsw (embedding vector_cosine_ops)
+        \"\"\"
       end
 
       def down do
         # Note: Down migration requires knowing the previous dimensions
         # This is a best-effort reversal - you may need to adjust the size
-        drop_if_exists index(:arcana_chunks, [:embedding])
 
+        # Drop the HNSW index
+        execute "DROP INDEX IF EXISTS arcana_chunks_embedding_idx"
+
+        # Temporarily allow null values
+        execute "ALTER TABLE arcana_chunks ALTER COLUMN embedding DROP NOT NULL"
+
+        # Clear embeddings (they need to be re-embedded with the old model)
+        execute "UPDATE arcana_chunks SET embedding = NULL"
+
+        # Revert to previous dimensions (384 for bge-small-en-v1.5)
         alter table(:arcana_chunks) do
-          modify :embedding, :vector, size: 384
+          modify :embedding, :vector, size: 384, null: true
         end
 
-        create index(:arcana_chunks, [:embedding],
-          using: :hnsw,
-          options: "vector_cosine_ops"
-        )
+        # Recreate the HNSW index
+        execute \"\"\"
+        CREATE INDEX arcana_chunks_embedding_idx ON arcana_chunks
+        USING hnsw (embedding vector_cosine_ops)
+        \"\"\"
       end
     end
     """
