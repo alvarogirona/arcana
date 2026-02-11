@@ -23,6 +23,8 @@ defmodule Arcana.Graph.Entity do
 
     belongs_to(:chunk, Chunk)
     belongs_to(:collection, Collection)
+    has_many(:source_relationships, Arcana.Graph.Relationship, foreign_key: :source_id)
+    has_many(:target_relationships, Arcana.Graph.Relationship, foreign_key: :target_id)
 
     timestamps()
   end
