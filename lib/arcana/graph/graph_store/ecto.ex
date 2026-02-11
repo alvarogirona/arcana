@@ -230,6 +230,7 @@ defmodule Arcana.Graph.GraphStore.Ecto do
           type: r.type,
           strength: r.strength,
           description: r.description,
+          metadata: r.metadata,
           source_id: source.id,
           source_name: source.name,
           source_type: source.type,
@@ -508,7 +509,12 @@ defmodule Arcana.Graph.GraphStore.Ecto do
   defp find_entity_ids([], _collection_ids, _repo), do: []
 
   defp find_entity_ids(entity_names, collection_ids, repo) do
-    query = from(e in Entity, where: e.name in ^entity_names, select: e.id)
+    patterns = Enum.map(entity_names, &"%#{&1}%")
+    # TODO: use ilike for case-insensitive matching?
+    IO.inspect(entity_names, label: "Finding entity IDs for names:")
+    query = from e in Arcana.Graph.Entity,
+    where: fragment("? ILIKE ANY(?)", e.name, ^patterns),
+    select: e.id
 
     query =
       if collection_ids && collection_ids != [],
@@ -516,6 +522,7 @@ defmodule Arcana.Graph.GraphStore.Ecto do
         else: query
 
     repo.all(query)
+    |> dbg()
   end
 
   defp fetch_and_score_chunks([], _repo), do: []
@@ -529,6 +536,8 @@ defmodule Arcana.Graph.GraphStore.Ecto do
           distinct: true
         )
       )
+
+    IO.inspect(chunk_ids, label: "Retrieved chunks to rank")
 
     score_chunks(chunk_ids, entity_ids, repo)
   end
