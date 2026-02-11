@@ -355,11 +355,28 @@ defmodule Arcana.Search do
 
   @doc false
   def rrf_combine(list1, list2, limit, k \\ 60) do
+    normalize_id = fn id ->
+      case id do
+        id when is_binary(id) and byte_size(id) == 16 ->
+          Ecto.UUID.cast!(id)
+
+        id when is_binary(id) ->
+          id
+
+        _ ->
+          to_string(id)
+      end
+    end
+
     scores1 =
-      list1 |> Enum.with_index(1) |> Map.new(fn {item, rank} -> {item.id, 1 / (k + rank)} end)
+      list1
+      |> Enum.with_index(1)
+      |> Map.new(fn {item, rank} -> {normalize_id.(item.id), 1 / (k + rank)} end)
 
     scores2 =
-      list2 |> Enum.with_index(1) |> Map.new(fn {item, rank} -> {item.id, 1 / (k + rank)} end)
+      list2
+      |> Enum.with_index(1)
+      |> Map.new(fn {item, rank} -> {normalize_id.(item.id), 1 / (k + rank)} end)
 
     all_items =
       (list1 ++ list2)
